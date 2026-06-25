@@ -1,0 +1,99 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.jooq.jooq-codegen-gradle' version '3.21.5'
+}
+
+group = 'sh'
+version = '0.0.1-SNAPSHOT'
+description = 'stock'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    compileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'org.postgresql:postgresql'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testCompileOnly 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    jooqCodegen 'org.jooq:jooq-meta-extensions:3.21.5'
+}
+
+def jooqGeneratedDir = layout.buildDirectory.dir('generated-src/jooq').get().asFile
+
+jooq {
+    configuration {
+        generator {
+            database {
+                name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+                properties {
+                    property {
+                        key = 'scripts'
+                        value = 'src/main/resources/db/schema.sql'
+                    }
+                    property {
+                        key = 'sort'
+                        value = 'semantic'
+                    }
+                    property {
+                        key = 'unqualifiedSchema'
+                        value = 'none'
+                    }
+                    property {
+                        key = 'defaultNameCase'
+                        value = 'lower'
+                    }
+                }
+            }
+            target {
+                packageName = 'sh.stock.jooq'
+                directory = jooqGeneratedDir.path
+            }
+        }
+    }
+}
+
+sourceSets.main.java.srcDirs += jooqGeneratedDir
+
+tasks.named('compileJava') {
+    dependsOn tasks.named('jooqCodegen')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.register('unitTest', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'unit'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+}
